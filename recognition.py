@@ -24,6 +24,20 @@ if "TESSERACT_CMD" in os.environ:
     pytesseract.pytesseract.tesseract_cmd = os.environ["TESSERACT_CMD"]
 
 
+def _grid_coordinates(points: np.ndarray) -> list[int]:
+    """Keep the last pixel in each cluster of adjacent grid intersections."""
+    sorted_points = np.sort(points)
+    if len(sorted_points) == 0:
+        return []
+    coordinates = [
+        int(sorted_points[i])
+        for i in range(len(sorted_points) - 1)
+        if sorted_points[i + 1] - sorted_points[i] > 10
+    ]
+    coordinates.append(int(sorted_points[-1]))
+    return coordinates
+
+
 def parse_img_to_csv_data(src: Path):
     """Extracts tabular data from an image.
 
@@ -46,6 +60,8 @@ def parse_img_to_csv_data(src: Path):
         corresponds to a row in the table.
     """
     raw = cv.imread(str(src), 1)
+    if raw is None:
+        raise ValueError(f"Could not read image: {src}")
 
     # Grayscale image
     gray = cv.cvtColor(raw, cv.COLOR_BGR2GRAY)
@@ -56,13 +72,13 @@ def parse_img_to_csv_data(src: Path):
 
     # Detect horizontal lines
     scale = 40  # can be set anywhere from 20-60
-    mask = cv.getStructuringElement(cv.MORPH_RECT, (cols // scale, 1))
+    mask = cv.getStructuringElement(cv.MORPH_RECT, (max(1, cols // scale), 1))
     eroded = cv.erode(binary, mask, iterations=1)
     dilated_col = cv.dilate(eroded, mask, iterations=1)
 
     # Detect vertical lines
     scale = 20  # can be set anywhere from 10-30
-    mask = cv.getStructuringElement(cv.MORPH_RECT, (1, rows // scale))
+    mask = cv.getStructuringElement(cv.MORPH_RECT, (1, max(1, rows // scale)))
     eroded = cv.erode(binary, mask, iterations=1)
     dilated_row = cv.dilate(eroded, mask, iterations=1)
 
@@ -72,11 +88,6 @@ def parse_img_to_csv_data(src: Path):
     # Find white intersections on the black-and-white image and derive the
     # horizontal and vertical coordinates.
     y_point, x_point = np.where(bitwise_and > 0)
-    # Ordinate
-    y_point_arr = []
-    # Abscissa
-    x_point_arr = []
-
     # Sorting yields the x/y transition values that mark an intersection
     # point; otherwise an intersection point would produce many pixel
     # values close together. Only the last point of each similar-value
@@ -84,24 +95,13 @@ def parse_img_to_csv_data(src: Path):
     # This gap of 10 is not fixed -- it should be tuned per image. It's
     # essentially the cell height (y-coordinate gap) and length
     # (x-coordinate gap) of the table.
-    i = 0
-    sort_x_point = np.sort(x_point)
-    for i in range(len(sort_x_point) - 1):
-        if sort_x_point[i + 1] - sort_x_point[i] > 10:
-            x_point_arr.append(sort_x_point[i])
-        i = i + 1
-    x_point_arr.append(sort_x_point[i])  # append the final point
-
-    i = 0
-    sort_y_point = np.sort(y_point)
-    for i in range(len(sort_y_point) - 1):
-        if (sort_y_point[i + 1] - sort_y_point[i] > 10):
-            y_point_arr.append(sort_y_point[i])
-        i = i + 1
-    y_point_arr.append(sort_y_point[i])  # append the final point
+    x_point_arr = _grid_coordinates(x_point)
+    y_point_arr = _grid_coordinates(y_point)
+    if len(x_point_arr) < 2 or len(y_point_arr) < 2:
+        raise ValueError(f"No table grid detected in image: {src}")
 
     # Loop over the table, splitting by y-coordinates and x-coordinates
-    data = [[] for i in range(len(y_point_arr))]
+    data = [[] for _ in range(len(y_point_arr) - 1)]
     for i in range(len(y_point_arr) - 1):
         for j in range(len(x_point_arr) - 1):
 

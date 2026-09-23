@@ -46,7 +46,10 @@ Run the `pdf2csv` command with the path to a PDF or PNG file:
 pdf2csv path/to/report.pdf
 ```
 
-The script will generate a CSV file with the extracted data next to the input file (PDFs also produce an intermediate `table in PNG/` directory of per-page images).
+For a PNG, the script writes a CSV next to the input. For a PDF, it writes one
+CSV per page alongside the rendered pages in `table in PNG/` under the current
+working directory. An unreadable image or an image without a detectable table
+grid raises an error; the CSV should always be checked against the source.
 
 ## How It Works
 
@@ -86,6 +89,17 @@ This script relies on the following Python libraries, declared in `pyproject.tom
 -   **Pytesseract**: For optical character recognition (OCR).
 
 `pip install -e .` installs all of them.
+
+## Tests
+
+```sh
+pip install -e '.[dev]'
+pytest -q
+ruff check .
+```
+
+The tests use generated images and replace the OCR call. They check input
+errors and table row structure, not Tesseract recognition quality.
 
 ## Disclaimer
 

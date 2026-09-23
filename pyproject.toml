@@ -15,6 +15,7 @@ pdf2csv = "main:main"
 
 [project.optional-dependencies]
 dev = [
+    "pytest>=8",
     "ruff",
 ]
 

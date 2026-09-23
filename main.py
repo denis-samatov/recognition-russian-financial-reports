@@ -44,7 +44,7 @@ def main() -> None:
         data = parse_img_to_csv_data(input_file)
         write_csv(input_file.with_suffix(".csv"), data)
     else:
-        logger.error("Unsupported file format: %s. Use PNG or PDF.", suffix)
+        parser.error(f"Unsupported file format: {suffix or '(none)'}. Use PNG or PDF.")
 
 
 if __name__ == "__main__":
