@@ -1,0 +1,9 @@
+# Financial OCR qualification protocol
+
+Current regression commands: `pip install -e '.[dev]'`, then `pytest tests/ -q` and `ruff check .`. Test outputs distinguish a skipped engine/font prerequisite from a real engine pass. Locally the synthetic PDF numeric-grid smoke executed with Tesseract5.5.1 and the installed rus language data; this only qualifies that fixture, not arbitrary reports.
+
+Before automatic financial use, obtain an approved labelled corpus and retain a manifest for each document: source ID/rights, SHA256, rendering DPI/engine versions, layout family, train/development/held-out split, exact cell bounding boxes/row/column spans, raw text, normalized numeric value, sign, decimal/thousands separators, currency/unit and human adjudication. Split by layout/source, not pages from the same report; do not tune morphology on held-out reports. Include skew, scans, small/unruled tables, merged cells and unreadable/no-grid pages.
+
+Measure table topology/cell matching separately from OCR exact text and numeric exact match; document-level correct totals/signs/units matter. Preserve raw source/OCR and reject or route uncertain extraction to review; never infer a financial value just to satisfy a subtotal. Thresholds for accepting a document must be set from the consumer's error tolerance and independent holdout results, not invented here. Record every failure and coverage gap.
+
+Output safety acceptance: existing destination remains byte-identical; encoding failure creates no destination; per-file publish is atomic/no-clobber; formula-like spreadsheet cells are escaped while ordinary signed numeric text is preserved. Multi-page operations can retain earlier complete pages after a later failure. Resource limits/isolation for untrusted native PDF/OCR processing must be validated in the target runtime before exposing this CLI as a public service.
