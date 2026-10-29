@@ -38,6 +38,16 @@ def _grid_coordinates(points: np.ndarray) -> list[int]:
     return coordinates
 
 
+def _long_line_components(mask: np.ndarray, dimension: int, minimum_span: int) -> np.ndarray:
+    """Drop short text strokes before intersecting candidate table lines."""
+    count, labels, stats, _ = cv.connectedComponentsWithStats(mask)
+    keep = np.zeros_like(mask)
+    for label in range(1, count):
+        if stats[label, dimension] >= minimum_span:
+            keep[labels == label] = 255
+    return keep
+
+
 def parse_img_to_csv_data(src: Path):
     """Extracts tabular data from an image.
 
@@ -81,6 +91,11 @@ def parse_img_to_csv_data(src: Path):
     mask = cv.getStructuringElement(cv.MORPH_RECT, (1, max(1, rows // scale)))
     eroded = cv.erode(binary, mask, iterations=1)
     dilated_row = cv.dilate(eroded, mask, iterations=1)
+
+    # Text strokes can survive the short morphology kernels. Only long grid
+    # components are structural lines in this full-page table detector.
+    dilated_col = _long_line_components(dilated_col, cv.CC_STAT_WIDTH, max(10, cols // 4))
+    dilated_row = _long_line_components(dilated_row, cv.CC_STAT_HEIGHT, max(10, rows // 4))
 
     # Detect intersections
     bitwise_and = cv.bitwise_and(dilated_col, dilated_row)  # bitwise AND is true only where both pixels are nonzero

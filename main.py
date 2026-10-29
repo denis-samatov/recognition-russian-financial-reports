@@ -30,19 +30,24 @@ def main() -> None:
         description="Extract tabular data from a PDF or PNG file into CSV."
     )
     parser.add_argument("input_file", type=Path, help="Path to the input PDF or PNG file")
+    parser.add_argument("--output-dir", type=Path, help="Write results into this directory; existing files are never replaced")
     args = parser.parse_args()
 
     input_file = args.input_file
     suffix = input_file.suffix.lower()
 
     if suffix == ".pdf":
-        files = convert_pdf2png(input_file)
+        files = convert_pdf2png(input_file, output_dir=args.output_dir)
         for file in files:
             data = parse_img_to_csv_data(file)
             write_csv(file.with_suffix(".csv"), data)
     elif suffix == ".png":
         data = parse_img_to_csv_data(input_file)
-        write_csv(input_file.with_suffix(".csv"), data)
+        output = input_file.with_suffix(".csv")
+        if args.output_dir is not None:
+            args.output_dir.mkdir(parents=True, exist_ok=True)
+            output = args.output_dir / output.name
+        write_csv(output, data)
     else:
         parser.error(f"Unsupported file format: {suffix or '(none)'}. Use PNG or PDF.")
 

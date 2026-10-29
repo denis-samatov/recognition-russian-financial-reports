@@ -1,14 +1,17 @@
 import logging
 from pathlib import Path
+from typing import Optional
 
 import fitz
+
+from output_files import publish_bytes
 
 logger = logging.getLogger(__name__)
 
 OUTPUT_DIR_NAME = "table in PNG"
 
 
-def convert_pdf2png(input_file: Path) -> list[Path]:
+def convert_pdf2png(input_file: Path, output_dir: Optional[Path] = None) -> list[Path]:
     """Converts each page of a PDF file to a PNG image.
 
     This function takes a path to a PDF file, iterates through each page,
@@ -22,8 +25,8 @@ def convert_pdf2png(input_file: Path) -> list[Path]:
         A list of paths for the generated PNG images.
     """
     output_files: list[Path] = []
-    output_dir = Path.cwd() / OUTPUT_DIR_NAME
-    output_dir.mkdir(exist_ok=True)
+    output_dir = Path.cwd() / OUTPUT_DIR_NAME if output_dir is None else Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Open the document
     with fitz.open(input_file) as doc:
@@ -45,7 +48,7 @@ def convert_pdf2png(input_file: Path) -> list[Path]:
             pix = page.get_pixmap(matrix=mat, alpha=False)
 
             output_file = output_dir / f"{input_file.stem}_page_{pg + 1}.png"
-            pix.save(output_file)
+            publish_bytes(output_file, pix.tobytes("png"))
             output_files.append(output_file)
 
         report = {

@@ -6,7 +6,11 @@ CSV file.
 """
 import csv
 import logging
+import io
+import re
 from pathlib import Path
+
+from output_files import publish_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -25,9 +29,19 @@ def write_csv(path: Path, data) -> None:
 
     # cp1251 matches the encoding Russian-locale Excel expects when opening
     # this CSV directly, rather than utf-8.
-    with open(file_path, "w", newline='', encoding='cp1251') as csv_file:
-        writer = csv.writer(csv_file, dialect='excel')
-        for item in data:
-            writer.writerows([item])
+    buffer = io.StringIO(newline="")
+    writer = csv.writer(buffer, dialect="excel")
+    for item in data:
+        safe_row = []
+        for value in item:
+            if isinstance(value, str):
+                stripped = value.lstrip()
+                numeric_negative = re.fullmatch(r"-\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?", stripped)
+                if stripped.startswith(("=", "+", "@")) or (stripped.startswith("-") and not numeric_negative):
+                    value = "'" + value
+            safe_row.append(value)
+        writer.writerow(safe_row)
+    # Encode before touching the destination: unsupported Unicode leaves no partial CSV.
+    publish_bytes(file_path, buffer.getvalue().encode("cp1251"))
     logger.info("File written: %s - done!\n", file_path.name)
     logger.info("#" * 66)

@@ -104,3 +104,13 @@ errors and table row structure, not Tesseract recognition quality.
 ## Disclaimer
 
 This script is provided "as is." The results may vary depending on the nature and complexity of the tables in the input files. It is recommended to carefully review the generated CSV files for accuracy before using them. No neural network is trained or used anywhere in this pipeline — table structure is found with classical computer-vision line detection, and text is read with Tesseract's OCR engine.
+
+## Safe output contract
+
+Existing PNG/CSV destinations are never replaced. Each individual output is fully serialized before an atomic no-clobber publish; a failure leaves no partially published file. A PDF may still leave successfully completed earlier pages if a later page fails: inspect the reported error and use a fresh output directory rather than assuming document-level all-or-nothing completion. Select a separate location for same-basename inputs with `pdf2csv input/report.pdf --output-dir results/report-one`.
+
+CSV remains cp1251 for compatibility. An unencodable character raises UnicodeEncodeError before creating a destination; the source document is never changed. Formula-like cells beginning with =,+,@ or a nonnumeric minus expression are prefixed with an apostrophe for spreadsheet consumption. Ordinary negative numbers such as -3.5/-1,25 remain numeric text. The input PDF/PNG and returned OCR data remain the original evidence; CSV text escaping is a presentation policy, not a numerical correction.
+
+`tests/test_outputs.py` exercises real local PDF rendering and output/encoding collisions; existing recognition tests still replace Tesseract. Golden held-out Russian financial reports, numeric exact-match/units validation, skew/merged cells and confidence/provenance still require an approved labelled corpus. No real OCR quality or automatic financial acceptance is established by these tests.
+
+The synthetic real-engine smoke renders a generated PDF table with known numeric cells, uses the installed Tesseract `rus` engine and checks exact values. It is skipped if its engine/language/font prerequisite is absent, and is not a real financial-report holdout. Grid filtering rejects short text strokes before intersecting long line components; the detector assumes a prominent full-page ruled table (lines spanning at least one quarter of the image in their direction). Small tables, unruled/merged cells and skew require separate corpus qualification. The locally observed Tesseract version and dependency profile are recorded with validation results; package versions alone do not pin engine data.
