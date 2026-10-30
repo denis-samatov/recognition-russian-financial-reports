@@ -8,7 +8,6 @@ recognition (OCR), and returns the data in a structured format.
 """
 
 import os
-import re
 from pathlib import Path
 
 import cv2 as cv
@@ -60,7 +59,7 @@ def parse_img_to_csv_data(src: Path):
     3.  Find the intersection points of the lines to determine the cell
         coordinates.
     4.  Extract the content of each cell and convert it to text using OCR.
-    5.  Clean the extracted text by removing special characters.
+    5.  Trim surrounding whitespace while preserving recognized symbols.
 
     Args:
         src: The file path of the input image.
@@ -126,10 +125,9 @@ def parse_img_to_csv_data(src: Path):
             # Read the text out of the cell
             text = pytesseract.image_to_string(cell, lang="rus")
 
-            # Strip special characters
-            text = re.findall(r'[^\*"$@&/?\\|<>~`″′‖{}!#〈\n]', text, re.S)
-            text = "".join(text)
-            data[i].append(text)
+            # Preserve units, financial notation and formula-like text as OCR evidence.
+            # Spreadsheet presentation escaping belongs to the CSV writer.
+            data[i].append(text.strip())
             j = j + 1
         i = i + 1
 

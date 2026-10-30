@@ -20,7 +20,7 @@ Follow these instructions to set up and run the script on your local machine.
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.13 for the maintained validated execution profile (package metadata retains a historical Python 3.9 minimum; that entire version range is not qualified)
 - Tesseract OCR Engine, with the Russian (`rus`) language pack installed
 
 Install Tesseract via your platform's package manager (`brew install tesseract tesseract-lang` on macOS, `apt install tesseract-ocr tesseract-ocr-rus` on Debian/Ubuntu) or from the [official repository](https://github.com/tesseract-ocr/tesseract). If `tesseract` isn't on your `PATH` after installing (this is common on Windows), set the `TESSERACT_CMD` environment variable to its full path, e.g.:
@@ -35,7 +35,8 @@ $env:TESSERACT_CMD = "C:\Program Files\Tesseract-OCR\tesseract.exe"
 ```sh
 git clone https://github.com/denis-samatov/recognition-russian-financial-reports.git
 cd recognition-russian-financial-reports
-pip install -e .
+python -m pip install --require-hashes -r requirements-execution.txt
+python -m pip install --no-deps --no-build-isolation .
 ```
 
 ### Usage
@@ -109,8 +110,32 @@ This script is provided "as is." The results may vary depending on the nature an
 
 Existing PNG/CSV destinations are never replaced. Each individual output is fully serialized before an atomic no-clobber publish; a failure leaves no partially published file. A PDF may still leave successfully completed earlier pages if a later page fails: inspect the reported error and use a fresh output directory rather than assuming document-level all-or-nothing completion. Select a separate location for same-basename inputs with `pdf2csv input/report.pdf --output-dir results/report-one`.
 
-CSV remains cp1251 for compatibility. An unencodable character raises UnicodeEncodeError before creating a destination; the source document is never changed. Formula-like cells beginning with =,+,@ or a nonnumeric minus expression are prefixed with an apostrophe for spreadsheet consumption. Ordinary negative numbers such as -3.5/-1,25 remain numeric text. The input PDF/PNG and returned OCR data remain the original evidence; CSV text escaping is a presentation policy, not a numerical correction.
+CSV remains cp1251 for compatibility. An unencodable character raises UnicodeEncodeError before creating a destination; the source document is never changed. Formula-like cells beginning with =,+,@ or a nonnumeric minus expression are prefixed with an apostrophe for spreadsheet consumption. Ordinary negative numbers such as -3.5/-1,25 remain numeric text. The input PDF/PNG remains the original evidence; cell text is recognized OCR output, not ground truth; CSV text escaping is a presentation policy, not a numerical correction.
 
 `tests/test_outputs.py` exercises real local PDF rendering and output/encoding collisions; existing recognition tests still replace Tesseract. Golden held-out Russian financial reports, numeric exact-match/units validation, skew/merged cells and confidence/provenance still require an approved labelled corpus. No real OCR quality or automatic financial acceptance is established by these tests.
 
 The synthetic real-engine smoke renders a generated PDF table with known numeric cells, uses the installed Tesseract `rus` engine and checks exact values. It is skipped if its engine/language/font prerequisite is absent, and is not a real financial-report holdout. Grid filtering rejects short text strokes before intersecting long line components; the detector assumes a prominent full-page ruled table (lines spanning at least one quarter of the image in their direction). Small tables, unruled/merged cells and skew require separate corpus qualification. The locally observed Tesseract version and dependency profile are recorded with validation results; package versions alone do not pin engine data.
+
+## Maintained execution and native CI profile
+
+`requirements-execution.in` resolves the compatible PyMuPDF 1.x API and current Pillow with
+unit/lint/build tools. Regenerate its separate hash-locked `requirements-execution.txt` using
+`uv pip compile requirements-execution.in --python-version 3.13 --generate-hashes --output-file requirements-execution.txt`.
+The older `requirements-tested.txt` remains historical partial environment evidence, not the
+current install recommendation. The profile was resolved on macOS arm64; the Linux CI run
+separately qualifies its target instead of claiming a universal platform lock.
+
+CI installs Tesseract/rus and a known DejaVu font, then sets `REQUIRE_TESSERACT_SMOKE=1`.
+Missing native prerequisites fail this job rather than silently skipping the real-engine test.
+Ordinary local pytest runs may still skip that one test when the engine/font is absent.
+The generated numeric table smoke is not a held-out financial corpus or clinical/business
+acceptance. Native engine/font/data versions remain part of a target-runtime qualification.
+
+### Recognized text preservation
+
+Cell extraction trims surrounding whitespace but preserves currency symbols, operators,
+quotes and formula-like text. The previous blanket character filter could silently turn
+`$100` into `100` or `2/3` into `23`; it has been removed. Spreadsheet escaping still occurs
+at CSV serialization, separately from source recognition. cp1251 encoding continues to fail
+explicitly before publishing a file when a recognized character cannot be represented.
+Preserving symbols does not correct OCR errors or establish numeric/units accuracy.

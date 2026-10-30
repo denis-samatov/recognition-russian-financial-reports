@@ -40,3 +40,16 @@ def test_cli_rejects_unsupported_extension(tmp_path: Path, monkeypatch: pytest.M
 
     with pytest.raises(SystemExit, match="2"):
         main.main()
+
+
+def test_financial_symbols_and_formula_text_are_not_silently_deleted(tmp_path, monkeypatch):
+    path = tmp_path / "grid.png"
+    image = np.full((400, 400, 3), 255, dtype=np.uint8)
+    for coordinate in (40, 200, 360):
+        cv.line(image, (coordinate, 40), (coordinate, 360), (0, 0, 0), 2)
+        cv.line(image, (40, coordinate), (360, coordinate), (0, 0, 0), 2)
+    assert cv.imwrite(str(path), image)
+    observed = "  $100 (USD) @rate=2 / 3 * 4\n"
+    monkeypatch.setattr(recognition.pytesseract, "image_to_string", lambda *a, **kw: observed)
+    data = recognition.parse_img_to_csv_data(path)
+    assert data == [[observed.strip(), observed.strip()], [observed.strip(), observed.strip()]]

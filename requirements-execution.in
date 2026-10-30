@@ -1,0 +1,11 @@
+# Maintained Python 3.13 software/native-engine acceptance profile.
+pytesseract
+opencv-python
+numpy
+PyMuPDF>=1.26,<2
+pytest>=8
+ruff
+Pillow>=13.0
+setuptools>=84.1
+wheel
+build
