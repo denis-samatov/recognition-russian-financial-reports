@@ -55,14 +55,21 @@ def test_cli_uses_explicit_output_directory_for_png(tmp_path, monkeypatch):
 
 def test_real_tesseract_synthetic_numeric_grid(tmp_path):
     import shutil
+    import os
     import pytesseract
     from PIL import Image, ImageDraw, ImageFont
     import recognition
     if shutil.which("tesseract") is None or "rus" not in pytesseract.get_languages(config=""):
+        if os.environ.get("REQUIRE_TESSERACT_SMOKE") == "1":
+            pytest.fail("CI requires real Tesseract with rus language")
         pytest.skip("Real Tesseract with rus language is required")
-    font_path = Path("/System/Library/Fonts/Supplemental/Arial.ttf")
-    if not font_path.exists():
-        pytest.skip("Synthetic fixture font unavailable; use another Cyrillic-capable font in target runtime")
+    candidates = [Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+                  Path("/System/Library/Fonts/Supplemental/Arial.ttf")]
+    font_path = next((path for path in candidates if path.is_file()), None)
+    if font_path is None:
+        if os.environ.get("REQUIRE_TESSERACT_SMOKE") == "1":
+            pytest.fail("CI requires a Cyrillic-capable fixture font")
+        pytest.skip("Synthetic fixture font unavailable")
     image = Image.new("RGB", (600, 600), "white")
     draw = ImageDraw.Draw(image)
     for coordinate in (30, 300, 570):

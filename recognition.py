@@ -8,7 +8,6 @@ recognition (OCR), and returns the data in a structured format.
 """
 
 import os
-import re
 from pathlib import Path
 
 import cv2 as cv
@@ -60,7 +59,7 @@ def parse_img_to_csv_data(src: Path):
     3.  Find the intersection points of the lines to determine the cell
         coordinates.
     4.  Extract the content of each cell and convert it to text using OCR.
-    5.  Clean the extracted text by removing special characters.
+    5.  Trim surrounding whitespace while preserving recognized symbols.
 
     Args:
         src: The file path of the input image.
@@ -96,6 +95,7 @@ def parse_img_to_csv_data(src: Path):
     # components are structural lines in this full-page table detector.
     dilated_col = _long_line_components(dilated_col, cv.CC_STAT_WIDTH, max(10, cols // 4))
     dilated_row = _long_line_components(dilated_row, cv.CC_STAT_HEIGHT, max(10, rows // 4))
+    grid_lines = cv.bitwise_or(dilated_col, dilated_row)
 
     # Detect intersections
     bitwise_and = cv.bitwise_and(dilated_col, dilated_row)  # bitwise AND is true only where both pixels are nonzero
@@ -121,15 +121,18 @@ def parse_img_to_csv_data(src: Path):
         for j in range(len(x_point_arr) - 1):
 
             # When slicing, the first parameter is the y-coordinate, the second is the x-coordinate
-            cell = raw[y_point_arr[i]:y_point_arr[i + 1], x_point_arr[j]:x_point_arr[j + 1]]
+            cell = raw[y_point_arr[i]:y_point_arr[i + 1], x_point_arr[j]:x_point_arr[j + 1]].copy()
+            # A crop still contains its right/bottom grid strokes. Tesseract can
+            # treat these as dark page borders and silently return an empty cell.
+            lines = grid_lines[y_point_arr[i]:y_point_arr[i + 1], x_point_arr[j]:x_point_arr[j + 1]]
+            cell[lines > 0] = 255
 
             # Read the text out of the cell
             text = pytesseract.image_to_string(cell, lang="rus")
 
-            # Strip special characters
-            text = re.findall(r'[^\*"$@&/?\\|<>~`″′‖{}!#〈\n]', text, re.S)
-            text = "".join(text)
-            data[i].append(text)
+            # Preserve units, financial notation and formula-like text as OCR evidence.
+            # Spreadsheet presentation escaping belongs to the CSV writer.
+            data[i].append(text.strip())
             j = j + 1
         i = i + 1
 
