@@ -139,3 +139,8 @@ quotes and formula-like text. The previous blanket character filter could silent
 at CSV serialization, separately from source recognition. cp1251 encoding continues to fail
 explicitly before publishing a file when a recognized character cannot be represented.
 Preserving symbols does not correct OCR errors or establish numeric/units accuracy.
+
+Detected grid strokes are painted white in each copied cell before OCR. Passing those
+strokes as dark crop borders caused empty numeric cells with the Linux DejaVu fixture;
+the source image stays unchanged. This removes detected table lines, not arbitrary
+margin pixels. Text that overlaps a ruled line still needs separate corpus qualification.

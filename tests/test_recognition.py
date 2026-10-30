@@ -53,3 +53,29 @@ def test_financial_symbols_and_formula_text_are_not_silently_deleted(tmp_path, m
     monkeypatch.setattr(recognition.pytesseract, "image_to_string", lambda *a, **kw: observed)
     data = recognition.parse_img_to_csv_data(path)
     assert data == [[observed.strip(), observed.strip()], [observed.strip(), observed.strip()]]
+
+
+def test_cell_ocr_excludes_detected_grid_strokes_but_preserves_text(tmp_path, monkeypatch):
+    path = tmp_path / "grid.png"
+    image = np.full((400, 400, 3), 255, dtype=np.uint8)
+    for coordinate in (40, 200, 360):
+        cv.line(image, (coordinate, 40), (coordinate, 360), (0, 0, 0), 2)
+        cv.line(image, (40, coordinate), (360, coordinate), (0, 0, 0), 2)
+    cv.putText(image, "100", (70, 130), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
+    assert cv.imwrite(str(path), image)
+    source = path.read_bytes()
+    cells = []
+
+    def recognize(cell, **kwargs):
+        cells.append(cell.copy())
+        return "recognized"
+
+    monkeypatch.setattr(recognition.pytesseract, "image_to_string", recognize)
+    recognition.parse_img_to_csv_data(path)
+    assert len(cells) == 4
+    for cell in cells:
+        # Grid strokes must not be passed to the cell-level OCR as dark page borders.
+        assert np.all(cell[-1, :, :] == 255)
+        assert np.all(cell[:, -1, :] == 255)
+    assert np.any(cells[0][10:-10, 10:-10] == 0), "interior glyphs must remain"
+    assert path.read_bytes() == source
