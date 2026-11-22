@@ -4,6 +4,27 @@ Tesseract-based OCR extraction of tabular data from Russian-language financial
 report PDFs and PNGs, converted to CSV. The script uses computer vision to
 locate the table's cell boundaries, then reads each cell with Tesseract OCR.
 
+<p align="center">
+  <a href="#getting-started"><img alt="Quick start" src="https://img.shields.io/badge/Quick%20start-0E7490?style=for-the-badge" height="32"></a>
+  <a href="#how-it-works"><img alt="How OCR works" src="https://img.shields.io/badge/How%20OCR%20works-3749A6?style=for-the-badge" height="32"></a>
+  <a href="VALIDATION.md"><img alt="Validation protocol" src="https://img.shields.io/badge/Validation%20protocol-6B3FA0?style=for-the-badge" height="32"></a>
+</p>
+
+<details>
+<summary>From a Russian report to reviewable CSV</summary>
+
+```mermaid
+flowchart TD
+    Input["PDF or PNG"] --> Page["Page image"]
+    Page --> Grid["OpenCV finds table cells"]
+    Grid --> Ocr["Tesseract reads each cell"]
+    Ocr --> Csv["CSV for review"]
+```
+
+Start with the [usage example](#usage). When reviewing a new report layout, check that rows and columns line up before comparing OCR text or numeric values. The [qualification protocol](VALIDATION.md) treats those checks separately.
+
+</details>
+
 ## Table of Contents
 
 - [Getting Started](#getting-started)
